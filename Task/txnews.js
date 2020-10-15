@@ -50,9 +50,10 @@ const notify = $.isNode() ? require('./sendNotify') : '';
 let s = parseInt($.getdata('delay'))||200 // 间隔延迟时间
 let notifyInterval =$.getdata('notifynum')||50; //阅读篇数间隔通知开为1，常关为0;
 const TX_HOST = 'https://api.inews.qq.com/activity/v1/'
-let SignArr = [],signurlVal = "";
-    cookiesArr = [],cookieVal = "";
-    VideoArr = [],videoVal = "";
+let SignArr = [],SignUrl = "";
+    cookiesArr = [],CookieTxnews = "";
+    VideoArr = [],SignUrl = "";
+    
 
 if ($.isNode()) {
   if (process.env.TXNEWS_COOKIE && process.env.TXNEWS_COOKIE.split('&') && process.env.TXNEWS_COOKIE.split('&').length > 0) {
@@ -80,25 +81,22 @@ if ($.isNode()) {
         }
     })
   } else {
-                cookiesArr.push($.getdata('sy_cookie_txnews'));
-   SignArr.push($.getdata( 'sy_signurl_txnews'));
+      cookiesArr.push($.getdata('sy_cookie_txnews'));
+      SignArr.push($.getdata( 'sy_signurl_txnews'));
       VideoArr.push($.getdata( 'video_txnews'))
   }
 
 let isGetCookie = typeof $request !== 'undefined'
 if (isGetCookie) {
-  GetCookie()
-} else {
+  GetCookie();
+  $.done()
+} 
 !(async () => {
- if(!cookiesArr){
+ if(!cookiesArr[0]){
       $.msg($.name, '【提示】🉐登录腾讯新闻app获取cookie',"qqnews://article_9500?tab=news_news&from=self", {"open-url": "qqnews://article_9500?tab=news_news&from=self"});
-    if ($.isNode()){
-      await notify.sendNotify($.name, '【提示】请先获取腾讯新闻一Cookie',"qqnews://article_9500?tab=news_news&from=self", {"open-url": "qqnews://article_9500?tab=news_news&from=self"});
-     }
-     return;
+      return
     }
   if ($.isNode()){
-      console.log(`\n============ 脚本执行来自 Github Action  ==============\n`)
       console.log(`============ 脚本执行-国际标准时间(UTC)：${new Date().toLocaleString()}  =============\n`)
       console.log(`============ 脚本执行-北京时间(UTC+8)：${new Date(new Date().getTime() + 8 * 60 * 60 * 1000).toLocaleString()}=============\n`)
      }
@@ -130,7 +128,7 @@ if (isGetCookie) {
   })()
       .catch((e) => $.logErr(e))
       .finally(() => $.done())
-}
+
 
 function GetCookie() {
   if ($request &&$request.body.indexOf("article_read")> -1) {
@@ -281,7 +279,7 @@ function Redpack() {
         }
         catch(error){
           $.log("打开红包失败,响应数据: "+ data+"\n错误代码:"+error) };
-        $.msg($.name, "开红包失败，详情请看日志 ❌", err)
+          $.msg($.name, "开红包失败，详情请看日志 ❌", error)
         resolve()
       })
     },s)
