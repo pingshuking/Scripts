@@ -1,6 +1,6 @@
 
 /*
-更新时间: 2020-09-27 10:10
+更新时间: 2020-10-18 00:50
 
 腾讯新闻签到修改版，可以自动阅读文章获取红包，该活动为瓜分百万现金挑战赛，针对幸运用户参与
 
@@ -52,18 +52,24 @@ let notifyInterval =$.getdata('notifynum')||50; //阅读篇数间隔通知开为
 const TX_HOST = 'https://api.inews.qq.com/activity/v1/'
 let SignArr = [],SignUrl = "";
     cookiesArr = [],CookieTxnews = "";
-    VideoArr = [],SignUrl = "";
+    VideoArr = [],SignUrl = "",order = "";
     
 
 if ($.isNode()) {
-  if (process.env.TXNEWS_COOKIE && process.env.TXNEWS_COOKIE.split('&') && process.env.TXNEWS_COOKIE.split('&').length > 0) {
-  CookieTxnews = process.env.TXNEWS_COOKIE.split('&');
-  }
- if (process.env.TXNEWS_SIGN && process.env.TXNEWS_SIGN.split('#') && process.env.TXNEWS_SIGN.split('#').length > 0) {
+  if (process.env.TXNEWS_COOKIE && process.env.TXNEWS_COOKIE.indexOf('&') > -1) {
+      CookieTxnews = process.env.TXNEWS_COOKIE.split('&');
+  } else {
+      CookieTxnews = process.env.TXNEWS_COOKIE.split()
+  };
+  if (process.env.TXNEWS_SIGN && process.env.TXNEWS_SIGN.indexOf('#') > -1) {
   SignUrl = process.env.TXNEWS_SIGN.split('#');
-  }
-  if (process.env.TXNEWS_VIDEO && process.env.TXNEWS_VIDEO.split('#') && process.env.TXNEWS_VIDEO.split('#').length > 0) {
+  } else {
+      SignUrl = process.env.TXNEWS_SIGN.split()
+  };
+  if (process.env.TXNEWS_VIDEO && process.env.TXNEWS_VIDEO.indexOf('#') > -1) {
   VideoUrl = process.env.TXNEWS_VIDEO.split('#');
+  } else {
+      VideoUrl = process.env.TXNEWS_VIDEO.split()
   };
     Object.keys(CookieTxnews).forEach((item) => {
         if (CookieTxnews[item]) {
@@ -108,11 +114,16 @@ if (isGetCookie) {
       $.index = i + 1;
       console.log(`-------------------------\n\n开始【腾讯新闻账号${$.index}】`)
     }
-      token = signurlVal.match(/devid=[a-zA-Z0-9_-]+/g)[0]
+      ID = signurlVal.match(/devid=[a-zA-Z0-9_-]+/g)[0]
+      token = signurlVal.split("&mac")[1]
       await getsign();
       await activity();
       await toRead();
       await lookVideo();
+      await OrderID();
+      if(order) {
+      await Pending();
+    };
       await StepsTotal();
       if(getreadred > 0){
         redbody = `redpack_type=article&activity_id=${actid}`
@@ -124,7 +135,12 @@ if (isGetCookie) {
       };
       await getTotal();
       await showmsg();
-   }
+    if ($.isNode()){
+       if (readnum%notifyInterval==0&&Total_Earn.data.wealth[1].title > 2){
+     await notify.sendNotify($.name,subTile+'\n'+detail)
+       }
+     }
+    }
   })()
       .catch((e) => $.logErr(e))
       .finally(() => $.done())
@@ -176,14 +192,15 @@ function getsign() {
 function activity() {
   return new Promise((resolve, reject) => {
     setTimeout(()=>{
-      $.get({url:`${TX_HOST}user/activity/get?isJailbreak=0&${token}`, headers: {Cookie:cookieVal}}, (error,response, data) =>{
-        if (error) {
-          $.msg("获取活动Id失败‼️", "", error)
-        } else {
-          let obj = JSON.parse(data)
-          actid = obj.data.activity.id
-          console.log(` 您的活动ID为: `+actid+"\n")
-        }
+      $.get({url:`${TX_HOST}user/activity/get?isJailbreak=0&${ID}`, headers: {Cookie:cookieVal}}, (error,response, data) =>{
+        try{
+             let obj = JSON.parse(data)
+             actid = obj.data.activity.id
+            console.log(`\n您的活动ID为: `+actid+"\n")
+          } catch(error){
+           $.msg("获取活动ID失败，详情请看日志","","")
+           console.log("活动ID日志:"+ data)
+          }
         resolve()
       })
     },s)
@@ -195,9 +212,16 @@ function toRead() {
   return new Promise((resolve, reject) => {
     setTimeout(()=>{
       $.post({url: signurlVal, headers: {Cookie:cookieVal}, body: 'event=article_read'},(error, resp, data)=> {
-        $.log("正在浏览文章"+data)
-      })
-      resolve()
+        try{
+             let obj = JSON.parse(data)
+              if(obj.ret == 0){
+              console.log("本次阅读领取" +obj.data.countdown_timer.countdown_tips+"\n")
+             }
+            } catch(error){
+            console.log("本次阅读失败"+data+"\n")
+          }
+        resolve()
+       })
     },s)
   })
 }
@@ -205,16 +229,60 @@ function lookVideo() {
   return new Promise((resolve, reject) => {
     setTimeout(()=>{
       $.post({url: videoVal, headers: {Cookie:cookieVal},body: 'event=video_read'},(error, response, data) =>{
-        if (error){
-          $.msg($.name, '观看视频:'+ error)
-        }else{
-         $.log("正在观看视频"+data)
-          tolookresult = JSON.parse(data)
+         try{
+             let obj = JSON.parse(data)
+              if(obj.ret == 0){
+              console.log("本次视频领取" +obj.data.countdown_timer.countdown_tips+"\n")
+             }
+            } catch(error){
+              console.log("观看视频失败"+data+"\n")
+          }
+        resolve()
+       })
+    },s*2)
+  })
+}
+
+function OrderID() {
+  return new Promise((resolve, reject) => {
+      $.post({url: `https://api.prize.qq.com/v1/newsapp/rp/common?isJailbreak=0&mac=${token}`, headers: {Cookie:cookieVal,"Content-Type": "application/x-www-form-urlencoded"},body: 'actFrom=wxplugin&actEname=newsapp_cj'},(error, response, data) =>{
+         //console.log(data)
+    if(response.statusCode !== 403){
+      try {
+          let openres = JSON.parse(data)
+            if (openres.code == 0 ){
+            meney = openres.data.money/100
+            order = openres.data.orderID
+            console.log(` 看新闻，领红包，到账: `+meney+'元\n') 
+             }
+           } catch(error){
+             console.log("打开看新闻，领红包失败:"+ data)      }
+         }
+        resolve()
+      })
+   })
+}
+
+function Pending() {
+  console.log(order)
+  return new Promise((resolve, reject) => {
+      $.post({url: `https://api.prize.qq.com/v1/newsapp/rp/get_pending?isJailbreak=0&mac=${token}`, 
+             headers: {Cookie:cookieVal,"Content-Type": "application/x-www-form-urlencoded"},
+             body: `orderID=${order}`},(error, response, data) =>{
+      //console.log(data)
+     if (response.statusCode !== 403){
+      try {
+          let res = JSON.parse(data)
+            if (res.code == 0 ){
+            console.log( '看新闻，领红包领取成功\n') 
+             }
+          } catch(error){
+            console.log("看新闻，领红包失败:"+ data)
+          }
         }
         resolve()
       })
-    },s*2)
-  })
+   })
 }
 
 //阅读文章统计
@@ -222,7 +290,7 @@ function StepsTotal() {
   return new Promise((resolve, reject) => {
     setTimeout(()=>{
       const StepsUrl = {
-        url: `${TX_HOST}activity/info/get?activity_id=${actid}&${token}`,
+        url: `${TX_HOST}activity/info/get?activity_id=${actid}&${ID}`,
         headers: {Cookie: cookieVal}
       }
       $.get(StepsUrl, (error, response, data) => {
@@ -260,7 +328,7 @@ function Redpack() {
   return new Promise((resolve, reject) => {
     setTimeout(()=>{
       const cashUrl = {
-        url: `${TX_HOST}activity/redpack/get?isJailbreak=0&${token}`,
+        url: `${TX_HOST}activity/redpack/get?isJailbreak=0&${ID}`,
         headers: {Cookie: cookieVal},
         body: redbody
       }
@@ -272,14 +340,15 @@ function Redpack() {
             redpackres = `【阅读红包】到账`+redpacks+`元 🌷\n`
             $.log("阅读红包到账"+redpacks+"元\n")
           }
-          else if (rcash.ret == 0&&redpacks>0){
+          else if (rcash.ret == 0&& redpacks >0){
             redpackres = `【视频红包】到账`+redpacks+`元 🌷\n`
             $.log("视频红包到账"+redpacks+"元\n")
           }
         }
         catch(error){
-          $.log("打开红包失败,响应数据: "+ data+"\n错误代码:"+error) };
+          console.log("打开红包失败,响应数据: "+ data) 
           $.msg($.name, "开红包失败，详情请看日志 ❌", error)
+          };
         resolve()
       })
     },s)
@@ -296,8 +365,8 @@ function getTotal() {
       if (error) {
         $.msg("获取收益信息失败‼️", "", error)
       } else {
-        const obj = JSON.parse(data)
-        subTile = '【收益总计】'+obj.data.wealth[0].title +'金币  '+"钱包: " +obj.data.wealth[1].title+'元'
+        const Total_Earn = JSON.parse(data)
+        subTile = '【收益总计】'+Total_Earn.data.wealth[0].title +'金币  '+"钱包: " +Total_Earn.data.wealth[1].title+'元'
      // $.log("钱包收益共计"+obj.data.wealth[1].title+"元")
       }
       resolve()
