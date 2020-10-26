@@ -44,21 +44,28 @@ const gametimes = "1999";  //游戏时长
 const logs = 0   //响应日志开关,默认关闭
 const $ = new Env('电视家')
 const notify = $.isNode() ? require('./sendNotify') : '';
- let sleeping = "";
+let sleeping = "",detail=``,subTitle=``;
 const dianshijia_API = 'http://api.gaoqingdianshi.com/api'
 let tokenArr = [], DsjurlArr = [], DrawalArr = [],drawalVal;
 if ($.isNode()) {
-  if (process.env.DSJ_HEADERS && process.env.DSJ_HEADERS.split('#') && process.env.DSJ_HEADERS.split('#').length > 0) {
+  if (process.env.DSJ_HEADERS && process.env.DSJ_HEADERS.indexOf('#') > -1) {
   Dsjheaders = process.env.DSJ_HEADERS.split('#');
+  console.log(`您选择的是用"#"隔开\n`)
   }
-  else if (process.env.DSJ_HEADERS && process.env.DSJ_HEADERS.split('\n') && process.env.DSJ_HEADERS.split('\n').length > 0) {
+  else if (process.env.DSJ_HEADERS && process.env.DSJ_HEADERS.indexOf('\n') > -1) {
   Dsjheaders = process.env.DSJ_HEADERS.split('\n');
+  console.log(`您选择的是用换行隔开\n`)
+  } else {
+      Dsjheaders = process.env.DSJ_HEADERS.split()
   };
-  if (process.env.DSJ_DRAWAL && process.env.DSJ_DRAWAL.split('#') && process.env.DSJ_DRAWAL.split('#').length > 0) {
-  Drawals = process.env.DSJ_DRAWAL.split('#');
+
+  if (process.env.DSJ_DRAWAL && process.env.DSJ_DRAWAL.indexOf('#') > -1) {
+      Drawals = process.env.DSJ_DRAWAL.split('#');
   }
-  else if (process.env.DSJ_DRAWAL && process.env.DSJ_DRAWAL.split('\n') && process.env.DSJ_DRAWAL.split('\n').length > 0) {
-  Drawals = process.env.DSJ_DRAWAL.split('\n');
+  else if (process.env.DSJ_DRAWAL && process.env.DSJ_DRAWAL.indexOf('\n') > -1) {
+      Drawals = process.env.DSJ_DRAWAL.split('\n');
+  } else {
+      Drawals = process.env.DSJ_DRAWAL.split()
   };
   Object.keys(Dsjheaders).forEach((item) => {
         if (Dsjheaders[item]) {
@@ -108,7 +115,7 @@ if (isGetCookie = typeof $request !== 'undefined') {
   await cash();       // 现金
   await cashlist();   // 现金列表
   await coinlist();   // 金币列表
-  if ($.isNode()) {
+  if ($.isNode()&& process.env.DSJ_NOTIFY_CONTROL == false) {
        await notify.sendNotify($.name, subTitle+'\n'+ detail)
      }
     }
@@ -199,7 +206,7 @@ function signinfo() {
      $.get({ url: `${dianshijia_API}/v4/sign/get`, headers: JSON.parse(signheaderVal)}, (error, response, data) => 
   {
    if(logs)$.log(`${$.name}, 签到信息: ${data}\n`)
-     const result = JSON.parse(data)
+     let result = JSON.parse(data)
      if (result.errCode == 0) 
     {
      var d = `${result.data.currentDay}`
@@ -219,7 +226,7 @@ function total() {
  return new Promise((resolve, reject) => {
    $.get({url: `${dianshijia_API}/coin/info`, headers: JSON.parse(signheaderVal)}, (error, response, data) => {
      if(logs)$.log(`${$.name}, 总计: ${data}\n`)
-     const result = JSON.parse(data)
+     let result = JSON.parse(data)
      subTitle = `待兑换金币: ${result.data.coin} ` 
    try{
       if(result.data.tempCoin){
@@ -240,7 +247,7 @@ function cash() {
     $.get({ url: `${dianshijia_API}/cash/info`, headers: JSON.parse(signheaderVal)}, (error, response, data) => 
       {
       if(logs)$.log(`现金: ${data}\n`)
-      const cashresult = JSON.parse(data)
+      let cashresult = JSON.parse(data)
       subTitle += '现金:'+ cashresult.data.amount/100+'元 额度:'+cashresult.data.withdrawalQuota/100+'元'
       cashtotal = cashresult.data.totalWithdrawn/100
        resolve()
