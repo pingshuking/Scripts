@@ -1,10 +1,10 @@
 
-name: dianshijia
+name: 电视家
 
 on:
   workflow_dispatch:
   schedule:
-     - cron: '*/29 4,12,23 * * *'
+     - cron: '*/15 4,12,19,23 * * *'
   watch:
     types: started
 jobs:
@@ -14,8 +14,10 @@ jobs:
     env:
         DSJ_HEADERS: ${{ secrets.DSJ_HEADERS }}
         DSJ_DRAWAL: ${{ secrets.DSJ_DRAWAL }}
+        TZ: Asia/shanghai
     steps:
-      - uses: actions/checkout@v1
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Use Node.js 12.x
         uses: actions/setup-node@v1
         with:
